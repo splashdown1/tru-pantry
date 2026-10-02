@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12160f">
+<title>TRU PANTRY</title>
+<style>
+:root{--bg:#12160f;--ink:#e7f0dc;--dim:#a8b89a;--line:#2c3824;--leaf:#c6d86a;--card:#1a2216;--bad:#c4543a}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Georgia,serif}
+button,input{font:inherit;color:inherit}
+#veil{position:fixed;inset:0;background:#12160f;color:#c6d86a;display:flex;align-items:center;justify-content:center;z-index:9}
+header{padding:16px 16px 4px}
+h1{font-size:22px;letter-spacing:.14em;margin:0;font-weight:normal}
+h1 span{color:var(--leaf)}
+.sub{color:var(--dim);font-size:13px;margin:4px 0 0}
+.warn{margin:10px 16px;padding:10px 12px;border:1px solid var(--bad);border-radius:10px;color:#f0d2c8;font-size:14px}
+.bar{display:flex;gap:8px;padding:8px 16px}
+input{background:#0e120c;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+#q{flex:1}
+#alt{width:92px}
+button.go{background:var(--leaf);color:#1a220c;border:0;border-radius:8px;padding:10px 14px;font-weight:bold}
+.chips{display:flex;gap:6px;overflow:auto;padding:0 16px 8px}
+.chips button{background:#222c1c;border:1px solid var(--line);border-radius:99px;padding:6px 10px;font-size:13px;white-space:nowrap}
+.chips button.on{border-color:var(--leaf);color:var(--leaf)}
+main{padding:0 16px 28px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 10px}
+.k{color:var(--leaf);font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+.big{font-size:24px;margin:4px 0}
+.src{color:var(--dim);font-size:12px;margin-top:6px}
+.gap{border-color:var(--bad)}
+footer{color:var(--dim);font-size:12px;padding:4px 16px 28px}
+</style>
+</head>
+<body>
+<div id="veil">TRU PANTRY</div>
+<header>
+  <h1>TRU <span>PANTRY</span></h1>
+  <p class="sub">Offline canning card. USDA times only. No invented recipes.</p>
+</header>
+<div class="warn">Low-acid food (vegetables, meat, fish, dried beans, soup) is pressure-canner only. A boiling-water bath does not reach 240°F and does not control botulism. If a lid bulges, liquid spurts, or it smells wrong: do not taste. Discard.</div>
+<div class="bar">
+  <input id="q" placeholder="beans, peaches, tomatoes…" enterkeyhint="search" autocomplete="off">
+  <input id="alt" inputmode="numeric" aria-label="altitude feet" value="10">
+  <button class="go" id="send">Send</button>
+</div>
+<div class="chips" id="chips"></div>
+<main id="out"></main>
+<footer>Packed minutes are the USDA 0–1,000 ft column, reprinted from extension tables that cite the Complete Guide. Elevation box is feet above sea level. Mobile, Alabama is about 10 ft. Not a substitute for the full Guide.</footer>
+<script>
+const LANES=["LAW","PRESSURE","BATH","TOMATO","SPOIL"];
+const SRC="USDA Complete Guide to Home Canning, via NCHFP / UMN Extension reprint of USDA tables";
+const LAW=[
+{t:"Two canners, two jobs",d:"Boiling-water canner: acid foods (most fruit, pickles, properly acidified tomatoes), 212°F at sea level. Pressure canner: low-acid foods. Pressure does not kill organisms. Temperature in pure steam does. At sea level, 10.5 lb gauge is 240°F.",s:"NCHFP, quoting USDA Complete Guide"},
+{t:"Vent 10 minutes",d:"Every pressure canner is vented 10 minutes before the weight goes on or the petcock closes. Trapped air lowers the temperature at 5, 10, or 15 lb and under-processes the food. Timing starts only after the gauge is at pressure and steady.",s:"NCHFP recommended canners"},
+{t:"Pressure drops",d:"If pressure falls below the required figure, bring it back and start the full original time over. Do not subtract the minutes already run.",s:"NCHFP, USDA rule"},
+{t:"Jars",d:"A process of 10 minutes or more sterilizes the jar during the process at elevations under 1,000 ft. A 5-minute jam process does not. Pre-sterilize those jars 10 minutes, plus 1 minute per extra 1,000 ft, or lengthen that process to 10 plus altitude.",s:"NCHFP jar sterilization note"},
+{t:"Dial gauge",d:"Check it every year. A gauge that reads high under-processes. Off by more than 2 lb: replace it. Weighted gauges are not checked that way; above 1,000 ft they step 5 to 10, or 10 to 15. They cannot sit between.",s:"NCHFP recommended canners"}
+];
+const PRESS=[
+{f:"Asparagus",pack:"hot or raw",jar:"pint",hs:"1 in",min:30},
+{f:"Asparagus",pack:"hot or raw",jar:"quart",hs:"1 in",min:40},
+{f:"Lima beans, small",pack:"hot or raw",jar:"pint",hs:"1 in",min:40},
+{f:"Lima beans, small",pack:"hot or raw",jar:"quart",hs:"1 1/2 in",min:50},
+{f:"Lima beans, large",pack:"hot or raw",jar:"pint",hs:"1 in",min:40},
+{f:"Lima beans, large",pack:"hot or raw",jar:"quart",hs:"1 1/4 in",min:50},
+{f:"Green or wax beans",pack:"hot or raw",jar:"pint",hs:"1 in",min:20},
+{f:"Green or wax beans",pack:"hot or raw",jar:"quart",hs:"1 in",min:25},
+{f:"Dried beans or peas",pack:"hot",jar:"pint",hs:"1 in",min:75},
+{f:"Dried beans or peas",pack:"hot",jar:"quart",hs:"1 in",min:90},
+{f:"Beets",pack:"hot",jar:"pint",hs:"1 in",min:30},
+{f:"Beets",pack:"hot",jar:"quart",hs:"1 in",min:35},
+{f:"Carrots, sliced",pack:"hot or raw",jar:"pint",hs:"1 in",min:25},
+{f:"Carrots, sliced",pack:"hot or raw",jar:"quart",hs:"1 in",min:30},
+{f:"Corn, cream style",pack:"hot",jar:"pint",hs:"1 in",min:85},
+{f:"Corn, whole kernel",pack:"hot or raw",jar:"pint",hs:"1 in",min:55},
+{f:"Corn, whole kernel",pack:"hot or raw",jar:"quart",hs:"1 in",min:85},
+{f:"Fish",pack:"raw",jar:"pint",hs:"1 in",min:100},
+{f:"Fish, smoked",pack:"raw",jar:"pint",hs:"1 in",min:110},
+{f:"Meat, ground",pack:"hot",jar:"pint",hs:"1 in",min:75},
+{f:"Meat, ground",pack:"hot",jar:"quart",hs:"1 in",min:90},
+{f:"Meat, strips or chunks",pack:"hot or raw",jar:"pint",hs:"1 in",min:75},
+{f:"Meat, strips or chunks",pack:"hot or raw",jar:"quart",hs:"1 in",min:90},
+{f:"Mushrooms, cultivated only",pack:"hot",jar:"half-pint or pint",hs:"1 in",min:45},
+{f:"Okra",pack:"hot",jar:"pint",hs:"1 in",min:25},
+{f:"Okra",pack:"hot",jar:"quart",hs:"1 in",min:40},
+{f:"Peas, fresh green",pack:"hot or raw",jar:"pint or quart",hs:"1 in",min:40},
+{f:"Peppers, peeled",pack:"hot",jar:"half-pint or pint",hs:"1 in",min:35},
+{f:"Sweet potatoes",pack:"hot",jar:"pint",hs:"1 in",min:65},
+{f:"Sweet potatoes",pack:"hot",jar:"quart",hs:"1 in",min:90},
+{f:"White potatoes",pack:"hot",jar:"pint",hs:"1 in",min:35}
+];
+const BATH=[
+{f:"Apples, sliced",pack:"hot",jar:"pint or quart",hs:"1/2 in",min:20},
+{f:"Applesauce",pack:"hot",jar:"pint",hs:"1/2 in",min:20},
+{f:"Applesauce",pack:"hot",jar:"quart",hs:"1/2 in",min:25},
+{f:"Peaches",pack:"hot",jar:"pint",hs:"1/2 in",min:20},
+{f:"Peaches",pack:"hot",jar:"quart",hs:"1/2 in",min:25},
+{f:"Peaches",pack:"raw",jar:"pint",hs:"1/2 in",min:25},
+{f:"Peaches",pack:"raw",jar:"quart",hs:"1/2 in",min:30}
+];
+const TOM=[
+{t:"Acidify or do not can",d:"USDA tomato processes assume added acid. Bottled lemon juice: 1 tablespoon per pint, 2 tablespoons per quart. Citric acid: 1/4 teaspoon per pint, 1/2 teaspoon per quart. Vinegar is the weaker option in the Guide and changes flavor. Do not use fresh-squeezed lemon juice for this step.",s:"USDA Complete Guide, tomato products"},
+{t:"Not a salsa card",d:"This page does not pack salsa, sauce, or juice times. Those depend on the tested recipe in the Guide. A family recipe is a gap here, not a process.",s:"TRU PANTRY gap law"}
+];
+const SPOIL=[
+{t:"Do not taste",d:"A sealed jar can still be unsafe. Bulging lid, lid that flexes, spurting liquid on open, mold, rising bubbles, or an off smell: discard the jar. Do not feed it to animals.",s:"USDA storage and spoilage rules"},
+{t:"Seal",d:"After cooling, the lid is concave and does not flex when pressed. An unsealed jar is refrigerated and used soon, or reprocessed with a new lid for the full original time, within 24 hours.",s:"USDA Complete Guide, cooling and seals"},
+{t:"Store",d:"Labeled, without the ring. Quality holds better at 50–70°F. Below 95°F is the Guide's ceiling for a sealed, properly processed jar.",s:"USDA Complete Guide"}
+];
+let lane="LAW";
+function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&","<":"<",">":">"}[c]));}
+function feet(){const n=parseInt(document.getElementById("alt").value,10);return isNaN(n)||n<0?0:n;}
+function bathAdd(ft){
+  if(ft<=1000) return 0;
+  if(ft<=3000) return 5;
+  if(ft<=6000) return 10;
+  if(ft<=8000) return 15;
+  return 20;
+}
+function pressurePsi(ft){
+  const dial=ft<=2000?11:ft<=4000?12:ft<=6000?13:ft<=8000?14:15;
+  const weighted=ft<=1000?10:15;
+  return {dial,weighted};
+}
+function card(k,big,body,src){
+  return `<article class="card"><div class="k">${esc(k)}</div><div class="big">${esc(big)}</div><div>${body}</div><div class="src">${esc(src)}</div></article>`;
+}
+function pressureCard(x){
+  const p=pressurePsi(feet());
+  return card("PRESSURE",x.f+" · "+x.jar,
+    esc(x.min+" min after venting and reaching pressure. Pack: "+x.pack+". Headspace: "+x.hs+".")+
+    `<br>At ${feet()} ft: weighted gauge ${p.weighted} lb, dial gauge ${p.dial} lb. Minutes do not grow with altitude. Pounds do.`,
+    SRC+" · low-acid table");
+}
+function bathCard(x){
+  const add=bathAdd(feet());
+  return card("BATH",x.f+" · "+x.jar,
+    esc((x.min+add)+" min in boiling water ("+x.min+" at 0–1,000 ft"+(add?" + "+add+" altitude":"")+". Pack: "+x.pack+". Headspace: "+x.hs+".")+
+    "<br>Water must cover the lids by at least 1 inch and be at a full boil the whole time.",
+    SRC+" · acid-food table, 0–1,000 ft column plus USDA elevation step");
+}
+function renderLane(){
+  const ft=feet();
+  if(lane==="LAW") document.getElementById("out").innerHTML=LAW.map(x=>card("LAW",x.t,esc(x.d),x.s)).join("");
+  if(lane==="PRESSURE") document.getElementById("out").innerHTML=card("GAUGE",ft+" ft",`Weighted ${pressurePsi(ft).weighted} lb · dial ${pressurePsi(ft).dial} lb for these low-acid packs. Vent 10 minutes first.`,SRC)+PRESS.map(pressureCard).join("");
+  if(lane==="BATH") document.getElementById("out").innerHTML=card("CLOCK",ft+" ft",`Add ${bathAdd(ft)} min to the 0–1,000 ft column. This step is the Guide's elevation bands, not a new recipe.`,SRC)+BATH.map(bathCard).join("");
+  if(lane==="TOMATO") document.getElementById("out").innerHTML=TOM.map(x=>card("TOMATO",x.t,esc(x.d),x.s)).join("");
+  if(lane==="SPOIL") document.getElementById("out").innerHTML=SPOIL.map(x=>card("SPOIL",x.t,esc(x.d),x.s)).join("");
+}
+function search(raw){
+  const q=(raw||"").trim().toLowerCase();
+  if(!q){renderLane();return;}
+  const hits=[];
+  PRESS.forEach(x=>{if(x.f.toLowerCase().includes(q)||q.includes(x.f.split(",")[0].toLowerCase())) hits.push(pressureCard(x));});
+  BATH.forEach(x=>{if(x.f.toLowerCase().includes(q)) hits.push(bathCard(x));});
+  if(/tomato|acid/.test(q)) TOM.forEach(x=>hits.push(card("TOMATO",x.t,esc(x.d),x.s)));
+  if(/spoil|bulg|mold|seal|taste/.test(q)) SPOIL.forEach(x=>hits.push(card("SPOIL",x.t,esc(x.d),x.s)));
+  if(/vent|gauge|altitude|pressure|bath|botul/.test(q)) LAW.forEach(x=>hits.push(card("LAW",x.t,esc(x.d),x.s)));
+  if(!hits.length){
+    document.getElementById("out").innerHTML=`<article class="card gap"><div class="k">GAP</div><div class="big">No packed process</div><div>No USDA time in this card matches that food. This page will not invent minutes, a salsa, or a family recipe. Use the Complete Guide for anything not listed.</div><div class="src">TRU PANTRY gap</div></article>`;
+    return;
+  }
+  document.getElementById("out").innerHTML=hits.slice(0,16).join("");
+}
+document.getElementById("chips").innerHTML=LANES.map(l=>`<button data-l="${l}" class="${l===lane?"on":""}">${l}</button>`).join("");
+document.getElementById("chips").onclick=e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  lane=b.dataset.l;
+  [...document.getElementById("chips").children].forEach(x=>x.classList.toggle("on",x===b));
+  document.getElementById("q").value="";
+  renderLane();
+};
+document.getElementById("send").onclick=()=>{localStorage.setItem("tru-pantry-alt",document.getElementById("alt").value);search(document.getElementById("q").value);};
+document.getElementById("q").addEventListener("keydown",e=>{if(e.key==="Enter"){localStorage.setItem("tru-pantry-alt",document.getElementById("alt").value);search(e.target.value);}});
+document.getElementById("alt").addEventListener("change",()=>{localStorage.setItem("tru-pantry-alt",document.getElementById("alt").value);if(!document.getElementById("q").value) renderLane();});
+const saved=localStorage.getItem("tru-pantry-alt"); if(saved) document.getElementById("alt").value=saved;
+renderLane();
+addEventListener("load",()=>{const v=document.getElementById("veil"); if(v){v.style.transition="opacity .4s";v.style.opacity="0";setTimeout(()=>v.remove(),450);}});
+setTimeout(()=>{const v=document.getElementById("veil"); if(v) v.remove();},20000);
+</script>
+</body>
+</html>
